@@ -48,8 +48,8 @@ background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='
 button{border:none;cursor:pointer;font-family:inherit;transition:all .25s}
 button:hover{transform:translateY(-2px)}
 input{font-family:inherit}
-.go{background:linear-gradient(135deg,#FF9800,#F44336);color:#fff;font-weight:700;border-radius:14px;padding:16px;font-size:18px;width:100%;box-shadow:0 4px 15px rgba(244,67,54,.3)}
-.go:hover{box-shadow:0 8px 25px rgba(244,67,54,.4)}
+.go{background:linear-gradient(135deg,#1D4ED8,#2563eb);color:#fff;font-weight:700;border-radius:14px;padding:16px;font-size:18px;width:100%;box-shadow:0 4px 15px rgba(29,78,216,.3)}
+.go:hover{box-shadow:0 8px 25px rgba(29,78,216,.4)}
 .gh{padding:8px 16px;border-radius:8px;background:rgba(0,0,0,.05);border:1px solid rgba(0,0,0,.08);color:#666;font-size:13px}
 .nv{flex:1;padding:14px;border-radius:12px;border:1px solid rgba(0,0,0,.08);background:rgba(255,255,255,.7);color:#333;font-size:15px;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.05)}
 .nv:hover{box-shadow:0 4px 15px rgba(0,0,0,.1)}
@@ -100,7 +100,13 @@ input{font-family:inherit}
 <!-- LOGIN -->
 <div class="page show mid" id="pageLogin">
 <div class="card login-card" style="padding:44px 36px;max-width:540px;width:100%;text-align:center">
-  <div class="school-badge" style="margin-bottom:20px">🏫 Trường Tiểu học Diễn Liên • Quảng Châu • Nghệ An</div>
+  <!-- School header like image 2 -->
+  <div style="margin-bottom:20px">
+    <div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#60a5fa,#3b82f6);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;font-size:32px;box-shadow:0 4px 12px rgba(59,130,246,.3)">🏫</div>
+    <div style="font-size:20px;font-weight:800;color:#1e3a5f;letter-spacing:1px">TRƯỜNG TIỂU HỌC DIỄN LIÊN</div>
+    <div style="font-size:13px;color:#888;margin-top:4px">Xã Quảng Châu, Tỉnh Nghệ An</div>
+  </div>
+  <div style="width:60px;height:2px;background:linear-gradient(90deg,#60a5fa,#3b82f6);margin:0 auto 20px;border-radius:2px"></div>
   <div style="font-size:64px;margin-bottom:12px">🎓</div>
   <h1 class="gg" style="font-size:34px;font-weight:800;margin-bottom:8px">EduPlay Diễn Liên</h1>
   <p style="color:#888;font-size:15px;margin-bottom:32px">Sân chơi trí tuệ dành cho học sinh tiểu học</p>
@@ -112,7 +118,8 @@ input{font-family:inherit}
     <div style="font-size:15px;color:#888;margin-bottom:10px">🎒 Chọn lớp</div>
     <div style="display:flex;gap:12px;justify-content:center" id="gradeArea"></div>
   </div>
-  <button class="go" onclick="doLogin()">🚀 Bắt Đầu Hành Trình</button>
+  <button class="go" style="background:linear-gradient(135deg,#1D4ED8,#2563eb)" onclick="doLogin()">🚀 Bắt Đầu Hành Trình</button>
+  <div style="margin-top:24px;font-size:12px;color:#bbb">© 2026 EduPlay. Bản quyền thuộc Chung Trần</div>
 </div>
 </div>
 
