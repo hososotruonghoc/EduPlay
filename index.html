@@ -96,7 +96,7 @@ input{font-family:inherit}
 
 <!-- Controls -->
 <div style="position:fixed;top:12px;right:12px;z-index:99;display:flex;gap:8px">
-  <button class="sound-toggle" id="voiceBtn" onclick="toggleVoice()">🎤 Giọng đọc</button>
+  <button class="sound-toggle" id="voiceBtn" onclick="toggleVoice()" style="display:none">🎤 Giọng đọc</button>
   <button class="sound-toggle" id="soundBtn" onclick="toggleSound()" style="font-size:11px;padding:6px 10px">🔊</button>
 </div>
 
@@ -137,7 +137,6 @@ input{font-family:inherit}
       <div style="font-size:17px;font-weight:800" class="gg">EduPlay Diễn Liên</div>
       <div style="font-size:11px;color:#999">🏫 Trường TH Diễn Liên • Quảng Châu • Nghệ An</div>
     </div>
-    <button class="gh" onclick="doLogout()">Đổi tài khoản</button>
   </div>
   <div class="card" style="padding:24px;margin-bottom:24px">
     <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px">
@@ -167,6 +166,9 @@ input{font-family:inherit}
     <button class="nv" onclick="goPage('history')">📊 Lịch Sử</button>
   </div>
   <div id="homeRecent"></div>
+  <div style="text-align:center;margin-top:24px;padding-top:16px;border-top:1px solid rgba(0,0,0,.06)">
+    <button class="gh" onclick="doLogout()" style="padding:10px 24px;font-size:13px">🔄 Đổi tài khoản</button>
+  </div>
 </div></div>
 
 <!-- QUIZ -->
@@ -390,8 +392,7 @@ function toggleVoice(){
   btn.style.borderColor = voiceEnabled ? '#90caf9' : 'rgba(0,0,0,.08)';
   if(!voiceEnabled) stopSpeaking();
   if(voiceEnabled){
-    // Test nhanh giọng Việt khi bật
-    speakText('Đã bật giọng đọc!', 'vi');
+    speakText('Voice reading is on!', 'en');
   }
 }
 
@@ -1029,6 +1030,11 @@ function goPage(name){
   var t={login:'pageLogin',home:'pageHome',quiz:'pageQuiz',result:'pageResult',ranks:'pageRanks',history:'pageHistory'};
   document.getElementById(t[name]).className=(name==='login'||name==='result')?'page show mid':'page show';
   if(name==='home')buildHome();if(name==='ranks')buildRanks();if(name==='history')buildHistory();
+  // Ẩn nút giọng đọc khi không ở trang quiz
+  if(name!=='quiz'){
+    document.getElementById('voiceBtn').style.display='none';
+    voiceEnabled=false; stopSpeaking();
+  }
   window.scrollTo(0,0);
 }
 
@@ -1071,6 +1077,14 @@ function buildHome(){
 function startQuiz(subId){
   curSubject=subId;curQuestions=shuffle(QBANK[subId][playerGrade]).slice(0,15);
   curIndex=0;curScore=0;curSelected=-1;curTimeLeft=450;curCombo=0;curMaxCombo=0;curCorrect=0;
+  // Chỉ hiện nút giọng đọc khi thi môn Tiếng Anh
+  var vb=document.getElementById('voiceBtn');
+  if(subId==='tienganh'){
+    vb.style.display='inline-block';
+  } else {
+    vb.style.display='none';
+    voiceEnabled=false; stopSpeaking();
+  }
   goPage('quiz');showQuestion();clearInterval(timerId);
   timerId=setInterval(function(){curTimeLeft--;var el=document.getElementById('qTimer');el.textContent='⏱️ '+fmtTime(curTimeLeft);
     el.className='tm '+(curTimeLeft<60?'dg':'nm');if(curTimeLeft<=0){clearInterval(timerId);finishQuiz()}},1000)
@@ -1152,7 +1166,7 @@ function finishQuiz(){
   document.getElementById('resSc').textContent=curScore;document.getElementById('resOk').textContent=curCorrect+'/'+curQuestions.length;
   document.getElementById('resCb').textContent='x'+curMaxCombo;
   document.getElementById('resRk').textContent=r.i+' '+r.n+' — '+totalScore.toLocaleString()+' điểm';
-  if(voiceEnabled) setTimeout(function(){speakText('Kết quả: Bạn trả lời đúng '+curCorrect+' trên '+curQuestions.length+' câu. Được '+curScore+' điểm. Học vị hiện tại: '+r.n, 'vi')},500);
+  if(voiceEnabled && curSubject==='tienganh') setTimeout(function(){speakText('Result: You got '+curCorrect+' out of '+curQuestions.length+' correct! Score: '+curScore+' points.', 'en')},500);
   goPage('result')
 }
 
