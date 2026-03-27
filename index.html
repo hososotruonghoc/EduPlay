@@ -234,11 +234,6 @@ input{font-family:inherit}
   <div id="histList"></div>
 </div></div>
 
-<!-- Voice Setup Panel -->
-<div id="voicePanel" style="display:none;position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px">
-  <div id="voicePanelInner" style="background:#fff;border-radius:22px;padding:32px 28px;max-width:520px;width:100%;box-shadow:0 16px 48px rgba(0,0,0,.2)"></div>
-</div>
-
 <script>
 // ===== SOUND EFFECTS (Web Audio API) =====
 var soundEnabled = true;
@@ -289,80 +284,91 @@ function toggleSound(){
   document.getElementById('soundBtn').textContent=soundEnabled?'🔊':'🔇';
 }
 
-// ===== TEXT-TO-SPEECH (Giọng đọc học sinh tiểu học) =====
+// ===== TEXT-TO-SPEECH (Google Translate - Giọng Việt chuẩn) =====
 var voiceEnabled = false;
-var synth = window.speechSynthesis || null;
-var viVoiceIdx = -1;  // Index trong getVoices()
-var enVoiceIdx = -1;
-var voicesReady = false;
-var voiceSetupDone = false;
+var ttsQueue = [];
+var ttsPlaying = false;
+var currentAudio = null;
 
-function getAllVoices(){ return synth ? synth.getVoices() : []; }
-
-function autoDetectVoices(){
-  var voices = getAllVoices();
-  if(!voices.length) return false;
-  voicesReady = true;
-  // Auto-detect Vietnamese voice
-  if(viVoiceIdx < 0){
-    for(var i=0;i<voices.length;i++){
-      var lang = (voices[i].lang||'').toLowerCase().replace('_','-');
-      if(lang.indexOf('vi')===0){ viVoiceIdx = i; break; }
-    }
-  }
-  // Auto-detect English voice (prefer female)
-  if(enVoiceIdx < 0){
-    for(var j=0;j<voices.length;j++){
-      var langE = (voices[j].lang||'').toLowerCase().replace('_','-');
-      if(langE.indexOf('en')===0){
-        if(enVoiceIdx < 0) enVoiceIdx = j;
-        var nm = voices[j].name.toLowerCase();
-        if(nm.indexOf('female')>=0||nm.indexOf('google')>=0||nm.indexOf('zira')>=0||nm.indexOf('samantha')>=0){
-          enVoiceIdx = j; break;
-        }
+// Dùng Google Translate TTS - giọng nữ Việt Nam chuẩn, không cần cài đặt
+function gttsSpeak(text, lang, onEnd){
+  var maxLen = 180;
+  // Chia nhỏ text nếu quá dài
+  var chunks = [];
+  if(text.length <= maxLen){
+    chunks.push(text);
+  } else {
+    var sentences = text.split(/(?<=[.?!,;:])\s*/);
+    var buf = '';
+    for(var i=0;i<sentences.length;i++){
+      if((buf + ' ' + sentences[i]).length > maxLen && buf.length > 0){
+        chunks.push(buf.trim());
+        buf = sentences[i];
+      } else {
+        buf = buf ? buf + ' ' + sentences[i] : sentences[i];
       }
     }
+    if(buf.trim()) chunks.push(buf.trim());
   }
-  return true;
+
+  var idx = 0;
+  function playNext(){
+    if(idx >= chunks.length){ if(onEnd) onEnd(); return; }
+    var url = 'https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl='
+      + encodeURIComponent(lang) + '&q=' + encodeURIComponent(chunks[idx]);
+    var audio = new Audio(url);
+    currentAudio = audio;
+    // Tăng tốc độ phát nhẹ để giọng nghe cao hơn, trẻ hơn
+    audio.playbackRate = lang === 'vi' ? 1.08 : 1.05;
+    audio.onended = function(){ idx++; playNext(); };
+    audio.onerror = function(){
+      console.log('TTS error, trying Web Speech fallback');
+      webSpeechFallback(chunks.slice(idx).join('. '), lang, onEnd);
+    };
+    audio.play().catch(function(e){
+      console.log('Audio play blocked:', e);
+      webSpeechFallback(chunks.slice(idx).join('. '), lang, onEnd);
+    });
+  }
+  playNext();
 }
 
-// Load voices
-if(synth){
-  autoDetectVoices();
-  if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=function(){autoDetectVoices()};
-  setTimeout(autoDetectVoices,500);
-  setTimeout(autoDetectVoices,1500);
-  setTimeout(autoDetectVoices,3000);
-}
-
-function speakText(text, lang){
-  if(!synth || !voiceEnabled) return;
+// Fallback: dùng Web Speech API nếu Google TTS không được
+function webSpeechFallback(text, lang, onEnd){
+  var synth = window.speechSynthesis;
+  if(!synth){ if(onEnd) onEnd(); return; }
   synth.cancel();
-  var voices = getAllVoices();
   var utter = new SpeechSynthesisUtterance(text);
-
-  if(lang === 'en'){
-    if(enVoiceIdx >= 0 && voices[enVoiceIdx]){
-      utter.voice = voices[enVoiceIdx];
-      utter.lang = voices[enVoiceIdx].lang;
-    } else { utter.lang = 'en-US'; }
-    utter.rate = 0.82; utter.pitch = 1.5;
-  } else {
-    if(viVoiceIdx >= 0 && voices[viVoiceIdx]){
-      utter.voice = voices[viVoiceIdx];
-      utter.lang = voices[viVoiceIdx].lang;
-    } else { utter.lang = 'vi-VN'; }
-    utter.rate = 0.85; utter.pitch = 1.6;
+  utter.lang = lang === 'en' ? 'en-US' : 'vi-VN';
+  utter.rate = 0.85;
+  utter.pitch = 1.5;
+  // Tìm voice phù hợp
+  var voices = synth.getVoices();
+  for(var i=0;i<voices.length;i++){
+    var vl = (voices[i].lang||'').toLowerCase().replace('_','-');
+    if(lang==='en' && vl.indexOf('en')===0){ utter.voice=voices[i]; break; }
+    if(lang==='vi' && vl.indexOf('vi')===0){ utter.voice=voices[i]; break; }
   }
-  utter.volume = 1;
+  utter.onend = onEnd;
   synth.speak(utter);
 }
 
-function getQuizLang(){ return (curSubject==='tienganh')?'en':'vi'; }
+function stopSpeaking(){
+  if(currentAudio){ currentAudio.pause(); currentAudio=null; }
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+}
+
+function speakText(text, lang){
+  if(!voiceEnabled) return;
+  stopSpeaking();
+  gttsSpeak(text, lang || 'vi');
+}
+
+function getQuizLang(){ return (curSubject==='tienganh') ? 'en' : 'vi'; }
 
 function readQuestion(){
-  if(!synth){alert('Trình duyệt không hỗ trợ giọng đọc!');return}
-  var q=curQuestions[curIndex],lang=getQuizLang(),text='',labels=['A','B','C','D'];
+  var q=curQuestions[curIndex], lang=getQuizLang();
+  var text='', labels=['A','B','C','D'];
   if(lang==='en'){
     text='Question '+(curIndex+1)+'. '+q.q;
     for(var i=0;i<q.o.length;i++) text+='. '+labels[i]+': '+q.o[i];
@@ -370,157 +376,23 @@ function readQuestion(){
     text='Câu '+(curIndex+1)+'. '+q.q;
     for(var i=0;i<q.o.length;i++) text+='. Đáp án '+labels[i]+': '+q.o[i];
   }
-  var w=voiceEnabled;voiceEnabled=true;speakText(text,lang);voiceEnabled=w;
-}
-
-// ===== VOICE SETUP PANEL =====
-function showVoiceSetup(){
-  autoDetectVoices();
-  var voices=getAllVoices();
-  var panel=document.getElementById('voicePanelInner');
-
-  var html='<div style="max-height:70vh;overflow-y:auto">';
-  html+='<h3 style="margin-bottom:16px;color:#333;font-size:18px">⚙️ Cài đặt Giọng đọc</h3>';
-
-  if(!synth || !voices.length){
-    html+='<div style="padding:16px;background:#fff3e0;border-radius:12px;border:1px solid #ffe0b2;margin-bottom:16px">';
-    html+='<p style="color:#e65100;font-weight:700;margin-bottom:8px">⚠️ Không tìm thấy giọng đọc!</p>';
-    html+='<p style="font-size:13px;color:#666">Vui lòng mở file bằng <b>Google Chrome</b> và kết nối Internet.</p>';
-    html+='</div>';
-  } else {
-    // === GIỌNG TIẾNG VIỆT ===
-    html+='<div style="margin-bottom:20px">';
-    html+='<div style="font-size:14px;font-weight:700;color:#1565c0;margin-bottom:8px">🇻🇳 Giọng Tiếng Việt <span style="font-size:11px;color:#999">(cho môn Toán và Tiếng Việt)</span></div>';
-
-    var viList=[];
-    for(var i=0;i<voices.length;i++){
-      var lang=(voices[i].lang||'').toLowerCase().replace('_','-');
-      if(lang.indexOf('vi')===0) viList.push(i);
-    }
-
-    if(viList.length===0){
-      html+='<div style="padding:14px;background:#ffebee;border-radius:10px;border:1px solid #ef9a9a;margin-bottom:10px">';
-      html+='<p style="color:#c62828;font-weight:700;font-size:13px;margin-bottom:8px">❌ Chưa có giọng Tiếng Việt trên máy!</p>';
-      html+='<p style="font-size:12px;color:#666;margin-bottom:8px"><b>Cách cài đặt trên Windows:</b></p>';
-      html+='<ol style="font-size:12px;color:#555;padding-left:18px;line-height:1.8">';
-      html+='<li>Mở <b>Settings</b> (Cài đặt)</li>';
-      html+='<li>Chọn <b>Time & Language</b> → <b>Language & region</b></li>';
-      html+='<li>Bấm <b>Add a language</b> → Tìm <b>Tiếng Việt</b></li>';
-      html+='<li>Tích chọn <b>Text-to-speech</b> rồi bấm <b>Install</b></li>';
-      html+='<li>Khởi động lại trình duyệt Chrome</li>';
-      html+='</ol>';
-      html+='<p style="font-size:12px;color:#666;margin-top:8px">💡 <b>Hoặc đơn giản hơn:</b> Kết nối Internet + dùng Chrome, giọng Google tiếng Việt sẽ tự có.</p>';
-      html+='</div>';
-    } else {
-      html+='<select id="selViVoice" style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid #e0e0e0;font-size:14px;background:#fff;color:#333;margin-bottom:8px">';
-      for(var vi=0;vi<viList.length;vi++){
-        var idx=viList[vi];
-        var sel=(idx===viVoiceIdx)?'selected':'';
-        html+='<option value="'+idx+'" '+sel+'>'+voices[idx].name+' ('+voices[idx].lang+')</option>';
-      }
-      html+='</select>';
-      html+='<button onclick="testVoice(\'vi\')" style="padding:8px 16px;border-radius:8px;background:#e3f2fd;border:1px solid #90caf9;color:#1565c0;font-size:13px;font-weight:600;cursor:pointer">🔊 Nghe thử tiếng Việt</button>';
-    }
-    html+='</div>';
-
-    // === GIỌNG TIẾNG ANH ===
-    html+='<div style="margin-bottom:20px">';
-    html+='<div style="font-size:14px;font-weight:700;color:#e65100;margin-bottom:8px">🇬🇧 Giọng Tiếng Anh <span style="font-size:11px;color:#999">(cho môn Tiếng Anh)</span></div>';
-
-    var enList=[];
-    for(var j=0;j<voices.length;j++){
-      var langE=(voices[j].lang||'').toLowerCase().replace('_','-');
-      if(langE.indexOf('en')===0) enList.push(j);
-    }
-
-    if(enList.length===0){
-      html+='<p style="color:#c62828;font-size:13px">❌ Không tìm thấy giọng tiếng Anh.</p>';
-    } else {
-      html+='<select id="selEnVoice" style="width:100%;padding:10px 12px;border-radius:10px;border:2px solid #e0e0e0;font-size:14px;background:#fff;color:#333;margin-bottom:8px">';
-      for(var en=0;en<enList.length;en++){
-        var idxE=enList[en];
-        var selE=(idxE===enVoiceIdx)?'selected':'';
-        html+='<option value="'+idxE+'" '+selE+'>'+voices[idxE].name+' ('+voices[idxE].lang+')</option>';
-      }
-      html+='</select>';
-      html+='<button onclick="testVoice(\'en\')" style="padding:8px 16px;border-radius:8px;background:#fff3e0;border:1px solid #ffe0b2;color:#e65100;font-size:13px;font-weight:600;cursor:pointer">🔊 Nghe thử tiếng Anh</button>';
-    }
-    html+='</div>';
-
-    // === TỔNG SỐ GIỌNG ===
-    html+='<div style="padding:10px;background:#f5f5f5;border-radius:8px;font-size:11px;color:#999;margin-bottom:16px">';
-    html+='📊 Tổng số giọng đọc trên máy: <b>'+voices.length+'</b> | Tiếng Việt: <b>'+viList.length+'</b> | Tiếng Anh: <b>'+enList.length+'</b>';
-    html+='</div>';
-  }
-
-  html+='<div style="display:flex;gap:8px">';
-  html+='<button onclick="saveVoiceSetup()" style="flex:1;padding:12px;border-radius:12px;background:linear-gradient(135deg,#1D4ED8,#2563eb);color:#fff;font-size:15px;font-weight:700;cursor:pointer;border:none">✅ Lưu và Bật giọng đọc</button>';
-  html+='<button onclick="closeVoicePanel()" style="padding:12px 20px;border-radius:12px;background:#f5f5f5;color:#666;font-size:15px;font-weight:600;cursor:pointer;border:1px solid #e0e0e0">Đóng</button>';
-  html+='</div>';
-  html+='</div>';
-
-  panel.innerHTML=html;
-  document.getElementById('voicePanel').style.display='flex';
-}
-
-function testVoice(lang){
-  var voices=getAllVoices();
-  var selId = (lang==='en') ? 'selEnVoice' : 'selViVoice';
-  var sel = document.getElementById(selId);
-  if(!sel) return;
-  var idx = parseInt(sel.value);
-
-  synth.cancel();
-  var utter = new SpeechSynthesisUtterance(
-    lang==='en'
-      ? 'Hello! I am a primary school student. Let me read the questions for you!'
-      : 'Xin chào! Em là học sinh tiểu học Trường Diễn Liên. Em sẽ đọc câu hỏi cho các bạn nghe nhé!'
-  );
-  if(voices[idx]){
-    utter.voice = voices[idx];
-    utter.lang = voices[idx].lang;
-  } else {
-    utter.lang = lang==='en'?'en-US':'vi-VN';
-  }
-  utter.rate = lang==='en' ? 0.82 : 0.85;
-  utter.pitch = lang==='en' ? 1.5 : 1.6;
-  utter.volume = 1;
-  synth.speak(utter);
-}
-
-function saveVoiceSetup(){
-  var selVi = document.getElementById('selViVoice');
-  var selEn = document.getElementById('selEnVoice');
-  if(selVi) viVoiceIdx = parseInt(selVi.value);
-  if(selEn) enVoiceIdx = parseInt(selEn.value);
-  voiceSetupDone = true;
-  voiceEnabled = true;
-  var btn = document.getElementById('voiceBtn');
-  btn.textContent = '🎤 Đang đọc';
-  btn.style.background = '#e3f2fd';
-  btn.style.color = '#1565c0';
-  btn.style.borderColor = '#90caf9';
-  closeVoicePanel();
-}
-
-function closeVoicePanel(){
-  document.getElementById('voicePanel').style.display='none';
-  if(synth) synth.cancel();
+  var w=voiceEnabled; voiceEnabled=true;
+  speakText(text, lang);
+  voiceEnabled=w;
 }
 
 function toggleVoice(){
-  if(!voiceSetupDone){
-    // Lần đầu bấm → mở bảng cài đặt giọng
-    showVoiceSetup();
-    return;
-  }
   voiceEnabled = !voiceEnabled;
   var btn = document.getElementById('voiceBtn');
   btn.textContent = voiceEnabled ? '🎤 Đang đọc' : '🎤 Giọng đọc';
   btn.style.background = voiceEnabled ? '#e3f2fd' : 'rgba(255,255,255,.8)';
   btn.style.color = voiceEnabled ? '#1565c0' : '#666';
   btn.style.borderColor = voiceEnabled ? '#90caf9' : 'rgba(0,0,0,.08)';
-  if(!voiceEnabled && synth) synth.cancel();
+  if(!voiceEnabled) stopSpeaking();
+  if(voiceEnabled){
+    // Test nhanh giọng Việt khi bật
+    speakText('Đã bật giọng đọc!', 'vi');
+  }
 }
 
 // ===== QUESTION BANK (450 câu - đầy đủ, tường minh, đáp án đã kiểm tra) =====
@@ -1264,10 +1136,10 @@ function pickAnswer(idx){
     else bs[i].className='ob dn'}
   var fb=document.getElementById('qFeedback');fb.style.display='block';fb.className='fb '+(ok?'fok':'fno');
   fb.innerHTML='<span style="font-size:15px;font-weight:700;color:'+(ok?'#2e7d32':'#c62828')+'">'+pickRandom(ok?YAYS:NAYS)+(pts>0?' (+'+pts+' điểm)':'')+'</span>';
-  setTimeout(function(){curSelected=-1;if(synth)synth.cancel();if(curIndex<curQuestions.length-1){curIndex++;showQuestion()}else finishQuiz()},voiceEnabled?2500:1500)
+  setTimeout(function(){curSelected=-1;stopSpeaking();if(curIndex<curQuestions.length-1){curIndex++;showQuestion()}else finishQuiz()},voiceEnabled?2500:1500)
 }
 
-function forceEnd(){clearInterval(timerId);if(synth)synth.cancel();finishQuiz()}
+function forceEnd(){clearInterval(timerId);stopSpeaking();finishQuiz()}
 function finishQuiz(){
   clearInterval(timerId);totalScore+=curScore;
   playCompleteSound();
