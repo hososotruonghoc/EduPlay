@@ -115,8 +115,12 @@ input{font-family:inherit}
     <input id="txtName" class="inp" placeholder="Nhập tên của con...">
   </div>
   <div style="text-align:left;margin-bottom:30px">
-    <div style="font-size:15px;color:#888;margin-bottom:10px">🎒 Chọn lớp</div>
+    <div style="font-size:15px;color:#888;margin-bottom:10px">🎒 Chọn khối lớp</div>
     <div style="display:flex;gap:12px;justify-content:center" id="gradeArea"></div>
+  </div>
+  <div style="text-align:left;margin-bottom:30px">
+    <div style="font-size:15px;color:#888;margin-bottom:8px">🏷️ Tên lớp <span style="font-size:12px;color:#bbb">(Ví dụ: 1A, 2C, 3B...)</span></div>
+    <input id="txtClass" class="inp" placeholder="Nhập tên lớp..." style="text-transform:uppercase">
   </div>
   <button class="go" style="background:linear-gradient(135deg,#1D4ED8,#2563eb)" onclick="doLogin()">🚀 Bắt Đầu Hành Trình</button>
   <div style="margin-top:24px;font-size:12px;color:#bbb">© 2026 EduPlay. Bản quyền thuộc Chung Trần</div>
@@ -766,7 +770,7 @@ var RANKS=[{n:"Sĩ Tử",m:0,i:"📜",c:"#8D6E63"},{n:"Tú Tài",m:500,i:"🎓",
 var YAYS=["Tuyệt vời! 🎉","Giỏi lắm! ⭐","Xuất sắc! 🏆","Chính xác! ✅","Đúng rồi! 🎯","Siêu giỏi! 💪","Thông minh quá! 🧠"];
 var NAYS=["Cố gắng lên nhé! 💪","Sai rồi, thử lại nào! 🔄","Đừng nản nhé! ⭐","Lần sau sẽ đúng! 🌟","Suy nghĩ kỹ hơn nhé! 🤔"];
 
-var playerName="",playerGrade=1,totalScore=0,historyList=[],gradeInput=1;
+var playerName="",playerGrade=1,playerClass="",totalScore=0,historyList=[],gradeInput=1;
 var curQuestions=[],curIndex=0,curScore=0,curSelected=-1,curTimeLeft=0,curCombo=0,curMaxCombo=0,curCorrect=0,curSubject="",timerId=0;
 
 function getRank(s){var r=RANKS[0];for(var i=0;i<RANKS.length;i++)if(s>=RANKS[i].m)r=RANKS[i];return r}
@@ -793,14 +797,15 @@ function buildGrades(){
 function doLogin(){
   var n=document.getElementById('txtName').value.trim();
   if(!n){alert('Vui lòng nhập tên của con!');return}
-  playerName=n;playerGrade=gradeInput;goPage('home');
+  var c=document.getElementById('txtClass').value.trim().toUpperCase();
+  playerName=n;playerGrade=gradeInput;playerClass=c;goPage('home');
 }
-function doLogout(){playerName='';totalScore=0;historyList=[];document.getElementById('txtName').value='';goPage('login');buildGrades()}
+function doLogout(){playerName='';playerClass='';totalScore=0;historyList=[];document.getElementById('txtName').value='';document.getElementById('txtClass').value='';goPage('login');buildGrades()}
 
 function buildHome(){
   var r=getRank(totalScore),n=getNext(totalScore),p=n.m>r.m?((totalScore-r.m)/(n.m-r.m))*100:100;
   document.getElementById('homeIcon').textContent=r.i;document.getElementById('homeName').textContent=playerName;
-  document.getElementById('homeGrade').textContent='Lớp '+playerGrade;
+  document.getElementById('homeGrade').textContent='Lớp '+playerGrade+(playerClass?' • Lớp '+playerClass:'');
   var rk=document.getElementById('homeRank');rk.textContent=r.i+' '+r.n;rk.style.background=r.c+'20';rk.style.color=r.c;
   document.getElementById('homeScore').textContent=totalScore.toLocaleString();
   document.getElementById('homeCurRk').textContent=r.i+' '+r.n;document.getElementById('homeNxtRk').textContent=n.i+' '+n.n;
@@ -875,7 +880,7 @@ function finishQuiz(){
   var r=getRank(totalScore),s=getSub(curSubject);
   document.getElementById('resEmoji').textContent=curCorrect>=12?'🏆':curCorrect>=8?'⭐':'💪';
   document.getElementById('resTitle').textContent=curCorrect>=12?'Xuất sắc!':curCorrect>=8?'Tốt lắm!':'Cố gắng hơn nhé!';
-  document.getElementById('resSub').textContent=(s?s.n:'')+' • Lớp '+playerGrade;
+  document.getElementById('resSub').textContent=(s?s.n:'')+' • Lớp '+playerGrade+(playerClass?' '+playerClass:'');
   document.getElementById('resSc').textContent=curScore;document.getElementById('resOk').textContent=curCorrect+'/'+curQuestions.length;
   document.getElementById('resCb').textContent='x'+curMaxCombo;
   document.getElementById('resRk').textContent=r.i+' '+r.n+' — '+totalScore.toLocaleString()+' điểm';goPage('result')
